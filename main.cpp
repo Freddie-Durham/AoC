@@ -5,14 +5,27 @@ using namespace std;
 
 int main() {
     string line;
-    ifstream data("input/day1_test.txt");
+    int pos = 0;
+    int total = 0;
+    ifstream data("input/day1.txt");
     if (data.is_open()){
         while (getline (data,line)){
-            cout << line << "\n";
+            int shift = stoi(line.substr(1,size(line)-1));
+            if (line[0]=='L'){
+                pos -= shift;
+            }else
+                pos += shift;
+            pos %= 50;
+            if (pos == 0){
+                total += 1;
+            };
         }
         data.close();
-    }
-    else cout << "Unable to open data file";
+    }else 
+    cout << "Unable to open data file";
 
+    cout << "Total = " << total;
     return 0;
 }
+
+//1226 is too high
