@@ -3,7 +3,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include<cmath>
+#include <cmath>
 using namespace std;
 
 //return padded room
