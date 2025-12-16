@@ -6,6 +6,10 @@
 #include<cmath>
 using namespace std;
 
+bool contains(string str, string substr){
+    return str.find(substr) != string::npos;
+}
+
 vector<string> split(string str, char delim){
     vector<string> strings;
     string cur_string = "";
@@ -32,21 +36,15 @@ void analyse(string file){
     string sequence;
     ifstream data(file);
     long long score = 0;
-    vector<vector<long long>> numbers;
+    vector<string> numbers;
     vector<bool> is_plus;
 
     if (data.is_open()){
-        int linenum = 0;
         while(getline(data,line)){
-            linenum += 1;
             stringstream stream(line);
             while (getline(stream,sequence,'\n')){
-                if (linenum < 5){
-                    vector<long long> num_list;
-                    for (string number : split(sequence, ' ')){
-                        num_list.push_back(stoll(number));
-                    }
-                    numbers.push_back(num_list);
+                if (!contains(sequence,"*")){
+                    numbers.push_back(sequence);
                 }
                 else{
                     for (string op : split(sequence, ' ')){
@@ -60,18 +58,37 @@ void analyse(string file){
                 }
             }
         }
-    
-    for (int i = 0; i < is_plus.size(); i++){
-        if (is_plus[i]){
-            score +=  numbers[0][i] + numbers[1][i] + numbers[2][i]
-            + numbers[3][i];
-        }
-        else{
-            score +=  numbers[0][i] * numbers[1][i] * numbers[2][i]
-            * numbers[3][i];
-        }
+
+    int op_pos = 0;
+    long long cur_calc = 0;
+    for (int i = 0; i < numbers[0].length(); i++){
+        string num_str = "";
+       for (int j = 0; j < numbers.size(); j++){
+            if (numbers[j][i] != ' '){
+                num_str.push_back(numbers[j][i]);
+            }   
+       }
+
+       if (num_str == ""){
+            op_pos += 1; 
+            score += cur_calc;
+            cur_calc = 0;
+       }
+       else{
+            long long num = stoll(num_str);
+            if (is_plus[op_pos]){
+                cur_calc += num;
+            }
+            else{
+                if (cur_calc == 0){
+                    cur_calc = 1;
+                } 
+                cur_calc *= num;
+            }            
+       }
     }
-    
+    score += cur_calc;
+
     data.close();
     cout << "Score = " << score << "\n";
     }    
