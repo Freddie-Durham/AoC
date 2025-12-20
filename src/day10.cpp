@@ -39,9 +39,9 @@ class Machine{
                 else if (sec[0] == '('){
                     uint32_t initial = 0;
                     vector<string> substr = split(sec.substr(1, sec.size() - 2), ',');
-                    uint32_t first_light = 1 << (len - 2);
+                    uint32_t first_light = 1 << (len - 1);
                     for (string num : substr){
-                        initial |= (first_light >> (stoi(num) - 1));
+                        initial |= (first_light >> (stoi(num)));
                     }
                     switch_vec.push_back(initial);
                 }
@@ -60,7 +60,7 @@ class Machine{
 };
 
 void print_machine(Machine m){
-    const int l = 6;
+    const int l = 10;
     bitset<l> t(m.target);
     bitset<l> s(m.state);
     cout << "Current = " << s << ", target = " << t << ". Switches: " << "\n";
@@ -141,7 +141,7 @@ void analyse(string file){
     vector<Machine> machines = get_machines(file);
     long long total = 0;
     for (Machine machine : machines){
-        //print_machine(machine);
+        print_machine(machine);
         int score = linear_switches(machine);
         //int score = test_switches(machine, 0, FAIL);
         //cout << "Best score = " << score << "\n";
