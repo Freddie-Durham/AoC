@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <climits>
 #include <stdint.h>
+#include <bitset>
 using namespace std;
 
 const int FAIL = 1000;
@@ -18,24 +19,29 @@ class Machine{
         uint32_t state;
         uint32_t target;
         vector<uint32_t> switches;
+        int len;
         int flips;
 
         Machine(string str){
             state = 0;
             target = 0;
             flips = 0;
+            len = 0;
+            
             vector<uint32_t> switch_vec;
             for (string sec : split(str, ' ')){
-                int len = sec.size();
                 if (sec[0] == '['){
-                    for (int i = len - 2; i > 0; i--){
-                        target |= ((sec[i] == '#') << (len - 2 - i));
+                    len = sec.size() - 2;
+                    for (int i = len; i > 0; i--){
+                        target |= ((sec[i] == '#') << (len - i));
                     }
                 }
                 else if (sec[0] == '('){
                     uint32_t initial = 0;
-                    for (string num : split(sec.substr(1, len - 2), ',')){
-                        initial |= (1 << stoi(num));
+                    vector<string> substr = split(sec.substr(1, sec.size() - 2), ',');
+                    uint32_t first_light = 1 << (len - 2);
+                    for (string num : substr){
+                        initial |= (first_light >> (stoi(num) - 1));
                     }
                     switch_vec.push_back(initial);
                 }
@@ -54,8 +60,16 @@ class Machine{
 };
 
 void print_machine(Machine m){
-    cout << "Current = " << m.state << ", target = " << m.target << "\n";
-    print(m.switches);
+    const int l = 6;
+    bitset<l> t(m.target);
+    bitset<l> s(m.state);
+    cout << "Current = " << s << ", target = " << t << ". Switches: " << "\n";
+
+    for (uint32_t sw : m.switches){
+        bitset<l> b(sw);
+        cout << b << " ";
+    }
+    cout << "\n";
 }
 
 vector<Machine> get_machines(string file){
@@ -78,7 +92,7 @@ vector<Machine> get_machines(string file){
     return array;
 }
 
-int test_switches(Machine machine, int index, int best){
+int test_switches(Machine& machine, int index, int best){
     if (machine.target == machine.state){
         return machine.flips;
     }
@@ -96,18 +110,50 @@ int test_switches(Machine machine, int index, int best){
     return best;
 }
 
-void analyse(string file){
-    vector<Machine> machines = get_machines(file);
-
-    for (Machine machine : machines){
-        print_machine(machine);
-        //int score = test_switches(machine, 0, FAIL);
-        //cout << "Best score = " << score << "\n";
+//return number of flips if successful
+int test_flip(Machine machine, int i, int len){
+    for (int j = 0; j < len; j++){
+        if ((i & (1 << j)) != 0){ //test if jth bit is set
+            machine.flip_switch(j);
+        }
+    }
+    if (machine.state == machine.target){
+        return machine.flips;
+    }
+    else{
+        return FAIL;
     }
 }
 
+int linear_switches(Machine machine){
+    int len = machine.switches.size();
+    int count = (1 << len);
+    int best = FAIL;
+
+    for (int i = 0; i < count; i++){
+        int score = test_flip(machine, i, len);
+        best = min(best, score);
+    }
+    return best;
+}
+
+void analyse(string file){
+    vector<Machine> machines = get_machines(file);
+    long long total = 0;
+    for (Machine machine : machines){
+        //print_machine(machine);
+        int score = linear_switches(machine);
+        //int score = test_switches(machine, 0, FAIL);
+        //cout << "Best score = " << score << "\n";
+        total += score;
+    }
+    cout << "Score = " << total << "\n";
+}
+
 int main() {
-    string file = "../input/day10_test.txt";
+    string file = "../input/day10.txt";
     analyse(file);
     return 0;
 }
+
+//110197 is too high
