@@ -16,6 +16,8 @@ class Machine{
     public:
         vector <float> target;
         vector<vector<float>> matrix;
+        vector<vector<float>> buttons;
+        vector<int> button_order;
         vector<int> state;
         int columns;
         int rows;
@@ -32,6 +34,7 @@ class Machine{
                         initial[(stoi(num))] = 1.0;
                     }
                     matrix.push_back(initial);
+                    buttons.push_back(initial);
                 }
                 else if (sec[0] == '{'){
                     vector<string> substr = split(sec.substr(1, sec.size() - 2), ',');
@@ -43,6 +46,12 @@ class Machine{
             rows = matrix.size();
             vector<int> initial(columns, 0.0);
             state = initial;
+
+            vector<int> pos(rows, 0.0);
+            for (int i = 0; i < rows; i++){
+                pos[i] = i;
+            }
+            button_order = pos;
         }
 };
 
@@ -52,6 +61,8 @@ void print_machine(Machine m){
     print(m.matrix);
     cout << "State:" << "\n";
     print(m.state);
+    cout << "Buttons:" << "\n";
+    print(m.buttons);
 }
 
 vector<Machine> get_machines(string file){
@@ -75,9 +86,10 @@ vector<Machine> get_machines(string file){
 }
 
 //swap position of row a and b
-void swap_rows(vector<vector<float>> &matrix, vector<float> &target, int a, int b){
+void swap_rows(vector<vector<float>> &matrix, vector<float> &target, vector<int> &buttons, int a, int b){
     swap(matrix[a], matrix[b]);
     swap(target[a], target[b]);
+    swap(buttons[a], buttons[b]);
 }
 
 //multiply row a by v
@@ -99,7 +111,7 @@ void add_rows(vector<vector<float>> &matrix, vector<float> &target, int a, int b
 
 //find first row where ith column is non-zero and swap that row with ith row
 //return false if there are no rows from i to end where matrix[row][i] != 0
-bool select_row(vector<vector<float>> &matrix, vector<float> &target, int i){
+bool select_row(vector<vector<float>> &matrix, vector<float> &target, vector<int> &buttons, int i){
     int largest_index = i;
     float largest_value = 0;
     for (int row = i; row < target.size(); row++){
@@ -113,15 +125,15 @@ bool select_row(vector<vector<float>> &matrix, vector<float> &target, int i){
         return false;
     }
     else{
-        swap_rows(matrix, target, i, largest_index);
+        swap_rows(matrix, target, buttons, i, largest_index);
         return true;
     }
 }
 
-void solve_matrix(vector<vector<float>> &matrix, vector<float> &target){
+void solve_matrix(vector<vector<float>> &matrix, vector<float> &target, vector<int> &buttons){
     for (int i = 0; i < target.size(); i++){
         //next row must have non-zero value at matrix[i][i]
-        bool found_row = select_row(matrix, target, i); 
+        bool found_row = select_row(matrix, target, buttons, i); 
 
         if (found_row){
             multiply_row(matrix, target, i, 1 / matrix[i][i]);
@@ -134,24 +146,54 @@ void solve_matrix(vector<vector<float>> &matrix, vector<float> &target){
     }
 }
 
-void apply_solution(Machine &machine){
-    int pos = 0;
-    for (int t : machine.target){
-        for (float v : machine.matrix[pos]){
-            machine.state[pos] += v * t;
+//assume square matrix
+void transpose_matrix(vector<vector<float>> &matrix){
+    for (int i = 0; i < matrix.size(); i++){
+        for (int j = i; j < matrix.size(); j++){
+            swap(matrix[i][j], matrix[j][i]);
         }
-        pos ++;
     }
+}
+
+void push_button(Machine &m, vector<float> button, int n){
+    //loop through joltage counters, push button n times
+    for (int i; i < m.state.size(); i++){
+        if (button[i] > 0){
+            m.state[i] += n;
+        }
+    }
+}
+
+void apply_solution(Machine &m){
+    //loop through buttons (they have been re-ordered)
+    for (int i = 0; i < m.rows; i++){
+        push_button(m, m.buttons[m.button_order[i]], m.target[i]);
+    }
+}
+
+//assume matrix is square
+vector<float> mat_mul(vector<vector<float>> &matrix, vector<float> &vec){
+    vector<float> solution(matrix.size(), 0.0);
+    for (int row = 0; row < matrix.size(); row++){
+        float sum = 0;
+        for (int column = 0; column < matrix.size(); column++){
+            sum += matrix[row][column] * vec[column];
+        }
+        solution[row] = sum;
+    }
+    return solution;
 }
 
 void analyse(string file){
     vector<Machine> machines = get_machines(file);
     long long total = 0;
     
-    //print_machine(machines[1]);
-    solve_matrix(machines[1].matrix, machines[1].target);
-    apply_solution(machines[1]);
+    transpose_matrix(machines[1].matrix);
+    solve_matrix(machines[1].matrix, machines[1].target, machines[1].button_order);
+    //machines[1].target = {2,5,0,5,0};
+    //apply_solution(machines[1]);
     print_machine(machines[1]);
+    //print(mat_mul(machines[1].matrix, machines[1].target));
 }
 
 int main() {
