@@ -27,23 +27,25 @@ struct Point {
         }
 };
 
-/*
 struct PointHasher {
-    std::size_t operator()(const Point& p) const {
-        // A simple bit-shifting hash combine
-        return std::hash<int>{}(p.x) ^ (std::hash<int>{}(p.y) << 1);
+    size_t operator()(const Point& p) const {
+        size_t seed = 0;
+        for (long long val : p.vec) {
+            seed ^= hash<long long>{}(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
     }
-};*/
+};
 
 struct Node{
     public:
         Point pos;
-        long long g; //distance from root
-        long long h; //heuristic distance from target
-        long long f; //f = g + h
+        double g; //distance from root
+        double h; //heuristic distance from target
+        double f; //f = g + h
 
         //construct start and target nodes
-        Node(const vector <long long> &p, long long dist, long long goal_dist){
+        Node(const vector <long long> &p, double dist, double goal_dist){
             pos = Point(p);
             g = dist;
             h = goal_dist;
@@ -51,13 +53,13 @@ struct Node{
         }
 
         //Euclidian distance
-        long long calculate_distance(const vector <long long> &cur_pos, const Node &target){
-            long long dist = 0;
+        double calculate_distance(const vector <long long> &cur_pos, const Node &target){
+            double dist = 0;
             for (int i = 0; i < cur_pos.size(); i++){
-                long long diff = (cur_pos[i] - target.pos.vec[i]);
+                double diff = (cur_pos[i] - target.pos.vec[i]);
                 dist += diff * diff;
             }
-            return dist;
+            return sqrt(dist);
         }
 
         //construct new node from parent
@@ -67,7 +69,7 @@ struct Node{
             }
 
             pos = Point(edge);
-            g = prev_node.g + 1; //unweighted graph
+            g = prev_node.g + 1.0; //unweighted graph
             h = calculate_distance(edge, target);
             f = g + h;
         }
@@ -157,21 +159,18 @@ vector<Machine> get_machines(string file){
     return array;
 }
 
-//returns location of node in closed list. -1 if not in list.
-int in_closed_list(const vector<Node> &list, const Node &node){
-    for (int i = 0; i < list.size(); i++){
-        if (list[i].is_equal(node)){
-            return i;
-        }
-    }
-    return -1;
+bool not_visited(unordered_map<Point, double, PointHasher> &list, const Node &node){
+    //lookup node in closed list    
+    auto iter = list.find(node.pos);
+    //check if node is in closed list or current node is better than node in closed list
+    return ((iter == list.end()) || (node.g < iter->second));
 }
 
-long long shortest_path(Machine &machine){
+double shortest_path(Machine &machine){
     //we want next best node to always be at the top
     priority_queue<Node, vector<Node>, CompareNode> open_list;
     //should be easy to search to see if node already visited - use a hashmap
-    vector<Node> closed_list; //unordered_map<vector<long long>, long long> closed_list; 
+    unordered_map<Point, double, PointHasher> closed_list;
 
     Node goal_node(machine.target, 0, 0);
     vector<long long> start_pos(machine.target.size(), 0);
@@ -179,27 +178,26 @@ long long shortest_path(Machine &machine){
 
     open_list.push(start_node);
 
-    while (open_list.size() > 0){
+    while (!open_list.empty()){
+        //grab next best node to search and remove from open list
         Node cur_node = open_list.top();
         open_list.pop();
 
-        int closed_ind = in_closed_list(closed_list, cur_node);
-
-        if ((closed_ind < 0) || (cur_node.is_better(closed_list[closed_ind]))){
-            closed_list.push_back(cur_node);
+        //check if node is in closed list or current node is better than node in closed list
+        if (not_visited(closed_list, cur_node)){
+            //add current node to closed list (or update existing g score)
+            closed_list[cur_node.pos] = cur_node.g;
             
+            //success condition
             if (goal_node.is_equal(cur_node)){
                 return cur_node.g;
             }
 
-            for (vector<long long> &edge : machine.buttons){
+            //loop through children of current node
+            for (const vector<long long> &edge : machine.buttons){
                 Node new_node(cur_node, goal_node, edge);
-                int closed_index = in_closed_list(closed_list, new_node);
-                if (closed_index < 0){
-                    open_list.push(new_node);
-                }
-                else if (new_node.is_better(closed_list[closed_index])){
-                    closed_list.erase(closed_list.begin() + closed_index);
+                //if not in closed list, add to open list
+                if (not_visited(closed_list, new_node)){
                     open_list.push(new_node);
                 }
             }
@@ -214,7 +212,8 @@ void analyse(string file){
 
     for (int i = 0; i < machines.size(); i++){
         print_machine(machines[i]);
-        int len = shortest_path(machines[i]);
+
+        double len = shortest_path(machines[i]);
         cout << "Found shortest path with length = " << len << "\n";
     }
 }
