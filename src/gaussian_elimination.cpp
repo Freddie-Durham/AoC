@@ -61,11 +61,13 @@ class Machine{
                 newM.push_back(vector<float>(columns, 0.0));
             }
 
-            //if there are more buttons than displays, invent new displays that have a target of zero
+            //if there are more buttons than displays, invent new displays
+            //these displays have a target of total button presses (which we don't know)
+            //these displays are incremented by every button
             while (newM[0].size() < rows){ 
-                target.push_back(0.0);
+                target.push_back(7.0);
                 for (vector<float> &vec : newM){
-                    vec.push_back(0.0);
+                    vec.push_back(1.0);
                 }
             }
 
@@ -170,16 +172,18 @@ void analyse(string file){
     vector<Machine> machines = get_machines(file);
     long long total = 0;
 
-    for (int i = 0; i < 1; i++){
-        solve_matrix(machines[i].matrix, machines[i].target, machines[i].matrix.size());
-        print_machine(machines[i]);
-        // 1 3 3 0 1 2
-
+    for (int i = 0; i < machines.size(); i++){
         long long solution = 0;
-        for (long long t : machines[i].target){
-            solution += t;
+        if (machines[i].columns < machines[i].rows){
+            cout << "?" << "\n";
         }
-        cout << "Buttons pressed = " << solution << "\n";
+        else{
+            solve_matrix(machines[i].matrix, machines[i].target, machines[i].matrix.size());
+            for (long long t : machines[i].target){
+                solution += t;
+            }
+            cout << "Buttons pressed = " << solution << "\n";
+        }
     }
 }
 
