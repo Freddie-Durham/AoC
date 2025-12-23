@@ -30,9 +30,6 @@ class Machine{
     public:
         vector <float> target;
         vector<vector<float>> matrix;
-        vector<vector<float>> buttons;
-        vector<int> button_order;
-        vector<int> state;
         int columns;
         int rows;
 
@@ -40,7 +37,7 @@ class Machine{
             vector<vector<float>> newM;
             for (string sec : split(str, ' ')){
                 if (sec[0] == '['){
-                    columns = sec.size() - 2;
+                    columns = sec.size() - 2; //number of displays
                 }
                 else if (sec[0] == '('){
                     vector<float> initial(columns, 0.0);
@@ -57,17 +54,26 @@ class Machine{
                     }
                 }
             }
-            rows = newM.size();
-            vector<int> initial(columns, 0.0);
-            state = initial;
+            rows = newM.size(); //number of buttons
+
+            //if there are more displays than buttons, pad the matrix with buttons that do nothing
+            while (newM.size() < columns){ 
+                newM.push_back(vector<float>(columns, 0.0));
+            }
+
+            //if there are more buttons than displays, invent new displays that have a target of zero
+            while (newM[0].size() < rows){ 
+                target.push_back(0.0);
+                for (vector<float> &vec : newM){
+                    vec.push_back(0.0);
+                }
+            }
 
             vector<int> pos(rows, 0.0);
             for (int i = 0; i < rows; i++){
                 pos[i] = i;
             }
-            button_order = pos;
-            buttons = newM;
-            matrix = transpose_matrix(newM, columns, rows);
+            matrix = transpose_matrix(newM, newM.size(), newM[0].size());
         }
 };
 
@@ -97,22 +103,6 @@ vector<Machine> get_machines(string file){
     cout << "Unable to open data file";
     }
     return array;
-}
-
-void push_button(Machine &m, vector<float> button, int n){
-    //loop through joltage counters, push button n times
-    for (int i; i < m.columns; i++){
-        if (button[i] > 0){
-            m.state[i] += n;
-        }
-    }
-}
-
-void apply_solution(Machine &m){
-    //loop through buttons (they have been re-ordered)
-    for (int i = 0; i < m.rows; i++){
-        push_button(m, m.buttons[i], m.target[i]);
-    }
 }
 
 //swap position of row a and b
@@ -155,7 +145,6 @@ bool select_row(vector<vector<float>> &matrix, vector<float> &target, const int 
         return false;
     }
     else{
-        cout << "Largest index = " << largest_index << "\n";
         swap_rows(matrix, target, i, largest_index);
         return true;
     }
@@ -174,8 +163,6 @@ void solve_matrix(vector<vector<float>> &matrix, vector<float> &target, const in
                 }
             }
         }
-        print(matrix);
-        cout << i << "\n";
     }
 }
 
@@ -183,12 +170,16 @@ void analyse(string file){
     vector<Machine> machines = get_machines(file);
     long long total = 0;
 
-    for (int i = 0; i < 3; i++){
-        solve_matrix(machines[i].matrix, machines[i].target, machines[i].rows);
+    for (int i = 0; i < 1; i++){
+        solve_matrix(machines[i].matrix, machines[i].target, machines[i].matrix.size());
         print_machine(machines[i]);
+        // 1 3 3 0 1 2
 
-        //apply_solution(machines[i]);
-        //print(machines[i].state);
+        long long solution = 0;
+        for (long long t : machines[i].target){
+            solution += t;
+        }
+        cout << "Buttons pressed = " << solution << "\n";
     }
 }
 
