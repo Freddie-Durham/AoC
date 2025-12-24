@@ -63,28 +63,17 @@ class Machine{
                 newM.push_back(vector<float>(num_displays, 0.0));
             }
 
-            //if there are more buttons than displays, invent new displays
-            //these displays have a target of the number of times an excess button has been pressed (which we don't know)
-            //these displays are incremented whenever button "num_displays + n" is pressed
-            while (newM[0].size() < num_buttons){ 
-                target.push_back(0.0);
-                
-                for (int i = 0; i < newM.size(); i++){
-                    //display how many times button "num_displays + n" has been pressed
-                    if ((i >= num_displays) && (newM[i].size() == i)){
-                        newM[i].push_back(1.0);
-                    }
-                    else{
-                        newM[i].push_back(0.0);
-                    }
-                }
+            //if there are more buttons than displays, delete buttons from matrix
+            //these excess buttons must be exhaustively searched to find optimal solution
+            while (newM[0].size() > num_displays){ 
+                newM.pop_back();
             }
             matrix = transpose_matrix(newM, newM.size(), newM[0].size());
         }
 };
 
 void print_machine(Machine m){
-    cout << "Buttons = " << m.num_buttons << ", displays = " << m.num_displays << ". Target: " << "\n";
+    cout << "Buttons = " << m.num_buttons << ", displays = " << m.num_displays << ". Target: ";
     print(m.target);
     print(m.matrix);
 }
@@ -214,30 +203,25 @@ int max_presses(const vector<float> &button, const vector<float> &target){
     return max_press;
 }
 
-vector<float> handle_excess_buttons(const Machine &machine, vector<float> cur_target){
-    vector<float> solution;
-    bool success = false;
-
-    while (!success){
-        for (long long j = machine.num_displays; j < machine.num_buttons; j++){
-            cur_target[j] = max_presses(machine.buttons[j], machine.target);
+bool test_solution(const Machine &machine, const vector<float> &target, const vector<float> &solution){
+    bool success = true;
+    for (int j = 0; j < machine.num_displays; j++){
+        if ((solution[j] < 0) || (ceilf(solution[j]) != solution[j])){
+            success = false;
         }
-        solution = solve_matrix(machine.matrix, cur_target, machine.matrix.size());
-        //print(solution);
-
-        success = true;
-        for (int j = 0; j < machine.num_buttons; j++){
-            if ((solution[j] < 0) || (ceilf(solution[j]) != solution[j])){
-                success = false;
-            }
-        }
-        break;
     }
 
-    print(solution);
-    bool is_correct = (cur_target == mat_mul(machine.matrix, solution));
-    if (!is_correct){
-        cout << "Doesn't solve matrix" << "\n";
+    success &= (target == mat_mul(machine.matrix, solution));
+    return success;
+}
+
+vector<float> handle_excess_buttons(const Machine &machine){
+    vector<float> solution;
+    bool success = false;
+    print_machine(machine);
+
+    while (!success){
+        break;
     }
     return solution;
 }
@@ -247,15 +231,17 @@ void analyse(string file){
     long long total = 0;
     vector<float> solution;
 
-    for (int i = 0; i < 1/*machines.size()*/; i++){
+    for (int i = 0; i < machines.size(); i++){
         long long button_presses = 0;
-        print_machine(machines[i]);
 
         if (machines[i].num_displays < machines[i].num_buttons){
-            solution = handle_excess_buttons(machines[i], machines[i].target);
+            solution = handle_excess_buttons(machines[i]);
         }
         else{
             solution = solve_matrix(machines[i].matrix, machines[i].target, machines[i].matrix.size());
+            if (!test_solution(machines[i], machines[i].target, solution)){
+                cout << "Failed to find solution for i = " << i << "\n";
+            }
         }
         
         for (long long s : solution){
