@@ -14,6 +14,8 @@
 #include <bitset>
 using namespace std;
 
+const float FAIL = 10000;
+
 //assume square matrix
 vector<vector<float>> transpose_matrix(vector<vector<float>> &matrix, int columns, int rows){
     vector<float> new_row(rows, 0.0);
@@ -65,7 +67,7 @@ class Machine{
 
             //if there are more buttons than displays, delete buttons from matrix
             //these excess buttons must be exhaustively searched to find optimal solution
-            while (newM[0].size() > num_displays){ 
+            while (newM.size() > num_displays){ 
                 newM.pop_back();
             }
             matrix = transpose_matrix(newM, newM.size(), newM[0].size());
@@ -215,40 +217,90 @@ bool test_solution(const Machine &machine, const vector<float> &target, const ve
     return success;
 }
 
-vector<float> handle_excess_buttons(const Machine &machine){
-    vector<float> solution;
-    bool success = false;
-    print_machine(machine);
-
-    while (!success){
-        break;
+void add_button(const vector<float> &button, vector<float> &target, int sign){
+    for (int i = 0; i < target.size(); i++){
+        target[i] += sign * button[i];
     }
-    return solution;
+}
+
+bool all_positive(const vector<float> &target){
+    bool all = true;
+    for (const float &t : target){
+        if (t < 0.0){
+            all = false;
+            break;
+        }
+    }
+    return all;
+}
+
+float score_solution(const vector<float> &solution){
+    float button_presses = 0;
+    for (const float s : solution){
+        button_presses += s;
+    }
+    return button_presses;
+}
+
+float recursive_search(const Machine &machine, 
+    const vector<vector<float>> &buttons, vector<float> &target, int index, float best){
+    if (!all_positive(target)){
+        return best;
+    }
+    else {
+        vector<float> solution = solve_matrix(machine.matrix, target, machine.matrix.size());
+        if (test_solution(machine, target, solution)){
+            float score = score_solution(solution);
+            best = min(best, score);
+        }
+    }
+
+    add_button(buttons[index], target, +1);
+    float stick_score = recursive_search(machine, buttons,target, index, best);
+    add_button(buttons[index], target, -1);
+    best = min(best, stick_score);
+
+    if (index < buttons.size() - 1){
+        index += 1;
+        add_button(buttons[index], target, +1);
+        float switch_score = recursive_search(machine, buttons,target, index, best);
+        add_button(buttons[index], target, -1);
+        best = min(best, switch_score);
+    }
+    return best;
+}
+
+float handle_excess_buttons(const Machine &machine){
+    vector<vector<float>> spare_buttons;
+    for (int j = machine.num_displays; j < machine.num_buttons; j++){
+        spare_buttons.push_back(machine.buttons[j]);
+    }
+
+    vector<float> new_target = machine.target;
+    float best = recursive_search(machine, spare_buttons, new_target, 0, best);
+    
+    cout << "Best score = " << best << "\n";
+    return best;
 }
 
 void analyse(string file){
     vector<Machine> machines = get_machines(file);
-    long long total = 0;
+    float total = 0;
     vector<float> solution;
 
     for (int i = 0; i < machines.size(); i++){
-        long long button_presses = 0;
-
         if (machines[i].num_displays < machines[i].num_buttons){
-            solution = handle_excess_buttons(machines[i]);
+            total += handle_excess_buttons(machines[i]);
         }
         else{
             solution = solve_matrix(machines[i].matrix, machines[i].target, machines[i].matrix.size());
             if (!test_solution(machines[i], machines[i].target, solution)){
                 cout << "Failed to find solution for i = " << i << "\n";
             }
+            float button_presses = score_solution(solution);
+            cout << "Buttons pressed = " << button_presses << "\n";
+            total += button_presses;
         }
-        
-        for (long long s : solution){
-            button_presses += s;
-        }
-        cout << "Buttons pressed = " << button_presses << "\n";
-        total += button_presses;
     }
 }
 
