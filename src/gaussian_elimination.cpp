@@ -30,6 +30,7 @@ class Machine{
     public:
         vector <float> target;
         vector<vector<float>> matrix;
+        vector<vector<float>> buttons;
         int num_displays;
         int num_buttons;
 
@@ -55,6 +56,7 @@ class Machine{
                 }
             }
             num_buttons = newM.size(); //number of buttons
+            buttons = newM;
 
             //if there are more displays than buttons, pad the matrix with buttons that do nothing
             while (newM.size() < num_displays){ 
@@ -62,12 +64,19 @@ class Machine{
             }
 
             //if there are more buttons than displays, invent new displays
-            //these displays have a target of total button presses (which we don't know)
-            //these displays are incremented by every button
+            //these displays have a target of the number of times an excess button has been pressed (which we don't know)
+            //these displays are incremented whenever button "num_displays + n" is pressed
             while (newM[0].size() < num_buttons){ 
-                target.push_back(7.0);
-                for (vector<float> &vec : newM){
-                    vec.push_back(1.0);
+                target.push_back(0.0);
+                
+                for (int i = 0; i < newM.size(); i++){
+                    //display how many times button "num_displays + n" has been pressed
+                    if ((i >= num_displays) && (newM[i].size() == i)){
+                        newM[i].push_back(1.0);
+                    }
+                    else{
+                        newM[i].push_back(0.0);
+                    }
                 }
             }
             matrix = transpose_matrix(newM, newM.size(), newM[0].size());
@@ -162,7 +171,7 @@ vector<float> solve_matrix(vector<vector<float>> matrix, vector<float> target, c
     return target;
 }
 
-long long next_highest(vector<float>& target){
+long long next_highest(const vector<float>& target){
     long long max_val = 0;
     long long max_ind;
     for (int i = 0; i < target.size(); i++){
@@ -174,7 +183,7 @@ long long next_highest(vector<float>& target){
     return max_val;
 }
 
-long long sum(vector<float>& target){
+long long sum(const vector<float>& target){
     long long val = 0;
     for (int i = 0; i < target.size(); i++){
         val += target[i];
@@ -182,47 +191,75 @@ long long sum(vector<float>& target){
     return val;
 }
 
+//assume matrix is square
+vector<float> mat_mul(const vector<vector<float>> &matrix, const vector<float> &vec){
+    vector<float> solution(matrix.size(), 0.0);
+    for (int row = 0; row < matrix.size(); row++){
+        float sum = 0;
+        for (int column = 0; column < matrix.size(); column++){
+            sum += matrix[row][column] * vec[column];
+        }
+        solution[row] = sum;
+    }
+    return solution;
+}
+
+int max_presses(const vector<float> &button, const vector<float> &target){
+   int max_press = 10000;
+    for (int i = 0; i < target.size(); i++){
+        if (button[i] > 0){
+            max_press = min(max_press, int(target[i]));
+        }
+    }
+    return max_press;
+}
+
+vector<float> handle_excess_buttons(const Machine &machine, vector<float> cur_target){
+    vector<float> solution;
+    bool success = false;
+
+    while (!success){
+        for (long long j = machine.num_displays; j < machine.num_buttons; j++){
+            cur_target[j] = max_presses(machine.buttons[j], machine.target);
+        }
+        solution = solve_matrix(machine.matrix, cur_target, machine.matrix.size());
+        //print(solution);
+
+        success = true;
+        for (int j = 0; j < machine.num_buttons; j++){
+            if ((solution[j] < 0) || (ceilf(solution[j]) != solution[j])){
+                success = false;
+            }
+        }
+        break;
+    }
+
+    print(solution);
+    bool is_correct = (cur_target == mat_mul(machine.matrix, solution));
+    if (!is_correct){
+        cout << "Doesn't solve matrix" << "\n";
+    }
+    return solution;
+}
+
 void analyse(string file){
     vector<Machine> machines = get_machines(file);
     long long total = 0;
     vector<float> solution;
 
-    for (int i = 0; i < machines.size(); i++){
+    for (int i = 0; i < 1/*machines.size()*/; i++){
         long long button_presses = 0;
+        print_machine(machines[i]);
+
         if (machines[i].num_displays < machines[i].num_buttons){
-            long long min_presses = next_highest(machines[i].target);
-            long long max_presses = sum(machines[i].target);
-            bool success = false;
-
-            while (!success && min_presses <= max_presses){
-                for (long long j = machines[i].num_displays; j < machines[i].num_buttons; j++){
-                    machines[i].target[j] = float(min_presses);
-                }
-                solution = solve_matrix(machines[i].matrix, machines[i].target, machines[i].matrix.size());
-                //print(solution);
-
-                success = true;
-                for (int j = 0; j < machines[i].num_buttons; j++){
-                    if ((solution[j] < 0) || (ceilf(solution[j]) != solution[j])){
-                        success = false;
-                    }
-                }
-                min_presses ++;
-            }
-            if (min_presses > max_presses){
-                cout << "Failed to find solution for " << i << ": "
-                << machines[i].num_buttons - machines[i].num_displays<< "\n";
-            }
-            else{
-                print(solution);
-                button_presses = min_presses;
-            }
+            solution = handle_excess_buttons(machines[i], machines[i].target);
         }
         else{
             solution = solve_matrix(machines[i].matrix, machines[i].target, machines[i].matrix.size());
-            for (long long s : solution){
-                button_presses += s;
-            }
+        }
+        
+        for (long long s : solution){
+            button_presses += s;
         }
         cout << "Buttons pressed = " << button_presses << "\n";
         total += button_presses;
@@ -230,7 +267,7 @@ void analyse(string file){
 }
 
 int main() {
-    string file = "../input/day10.txt";
+    string file = "../input/day10_test.txt";
     analyse(file);
     return 0;
 }
