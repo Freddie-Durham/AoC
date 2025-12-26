@@ -243,7 +243,7 @@ float score_solution(const vector<float> &solution){
 }
 
 float recursive_search(const Machine &machine, 
-    const vector<vector<float>> &buttons, vector<float> &target, int index, float best){
+    const vector<vector<float>> &buttons, vector<float> &target, float best){
     if (!all_positive(target)){
         return best;
     }
@@ -255,17 +255,12 @@ float recursive_search(const Machine &machine,
         }
     }
 
-    add_button(buttons[index], target, +1);
-    float stick_score = recursive_search(machine, buttons,target, index, best);
-    add_button(buttons[index], target, -1);
-    best = min(best, stick_score);
-
-    if (index < buttons.size() - 1){
-        index += 1;
-        add_button(buttons[index], target, +1);
-        float switch_score = recursive_search(machine, buttons,target, index, best);
-        add_button(buttons[index], target, -1);
-        best = min(best, switch_score);
+    float score = 0;
+    for (const vector<float> &button : buttons){
+        add_button(button, target, +1);
+        score = recursive_search(machine, buttons,target, best);
+        add_button(button, target, -1);
+        best = min(best, score);
     }
     return best;
 }
@@ -275,10 +270,9 @@ float handle_excess_buttons(const Machine &machine){
     for (int j = machine.num_displays; j < machine.num_buttons; j++){
         spare_buttons.push_back(machine.buttons[j]);
     }
-
     vector<float> new_target = machine.target;
-    float best = recursive_search(machine, spare_buttons, new_target, 0, best);
-    
+    float best = recursive_search(machine, spare_buttons, new_target, best);
+
     cout << "Best score = " << best << "\n";
     return best;
 }
@@ -290,7 +284,7 @@ void analyse(string file){
 
     for (int i = 0; i < machines.size(); i++){
         if (machines[i].num_displays < machines[i].num_buttons){
-            total += handle_excess_buttons(machines[i]);
+            //total += handle_excess_buttons(machines[i]);
         }
         else{
             solution = solve_matrix(machines[i].matrix, machines[i].target, machines[i].matrix.size());
@@ -304,8 +298,8 @@ void analyse(string file){
     }
 }
 
-int main() {
-    string file = "../input/day10_test.txt";
+int main(){
+    string file = "../input/day10.txt";
     analyse(file);
     return 0;
 }
