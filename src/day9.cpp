@@ -26,39 +26,25 @@ struct Corner{
         long long area(const Corner& other){
             return (abs(x - other.x) + 1) * (abs(y - other.y) + 1);
         }
-};
 
-const int UP = 0;
-const int DOWN = 1;
-const int LEFT = 2;
-const int RIGHT = 3;
+        bool is_vertical(const Corner& other){
+            if (x == other.x){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+};
 
 struct Edge{
     public:
-        int type, pos;
+        int pos, upper, lower;
 
         Edge(const Corner& prev, const Corner& next){
-            if (prev.x == next.x){
-                pos = prev.x;
-                if (prev.y - next.y < 0){
-                    type = UP;
-                }
-                else{
-                    type = DOWN;
-                }
-            }
-            else if (prev.y == next.y){
-                pos = prev.y;
-                if (prev.x - next.x < 0){
-                    type = RIGHT;
-                }
-                else{
-                    type = LEFT;
-                }
-            }
-            else{
-                cout << "Error - points not aligned" << "\n";
-            }
+            pos = prev.x;
+            upper = max(prev.y, next.y);
+            lower = min(prev.y, next.y);
         }
 };
 
@@ -67,7 +53,6 @@ vector<Corner> get_corners(string file){
     string sequence;
     ifstream data(file);
     vector<Corner> corners;
-    
 
     if (data.is_open()){
         while(getline(data,line)){
@@ -86,41 +71,41 @@ vector<Corner> get_corners(string file){
 
 vector<Edge> get_edges(const vector<Corner>& corners){
     vector<Edge> edges;
+    Corner cur_corner = corners[corners.size()-1];
 
-    for (int i = 1; i < corners.size(); i++){
-        edges.push_back(Edge(corners[i-1], corners[i]));
+    for (int i = 0; i < corners.size(); i++){
+        if (cur_corner.is_vertical(corners[i])){
+            edges.push_back(Edge(cur_corner, corners[i]));
+        }
+        cur_corner = corners[i];
     }
-    edges.push_back(Edge(corners[corners.size()-1], corners[0]));
+    cout << "Num edges = " << edges.size() << ". Num corners = " << corners.size() << "\n";
     return edges;
 }
 
 bool inside_perimeter(const Corner& c, const vector<Edge>& edges){
-    int above = 0;
-    int below = 0;
-    int left = 0;
-    int right = 0;
-
+    int edge_intersect = 0;
     for (const Edge& edge : edges){
-        if (edge.type == UP && c.x <= edge.pos){
-            right ++;
-        }
-        else if (edge.type == DOWN && c.x >= edge.pos){
-            left ++;
-        }
-        else if (edge.type == LEFT && c.y <= edge.pos){
-            above ++;
-        }
-        else if (edge.type == RIGHT && c.y >= edge.pos){
-            below ++;
+       if ((edge.pos > c.x) && (edge.upper >= c.y) && (edge.lower <= c.y)){
+            edge_intersect ++;
+       }
+    }
+    return edge_intersect % 2 != 0;
+}
+
+bool inside(const Corner& c, const vector<Edge>& edges){
+    for (const Edge& edge : edges){
+        if ((c.x == edge.pos) && ((c.y == edge.upper) || (c.y == edge.lower))){
+            return true;
         }
     }
-    return right % 2 != 0;
+    return false;
 }
 
 void print_tiles(const vector<Edge>& edges, int width, int height){
-    for (int i = 0; i < width; i++){
-        for (int j = 0; j < height; j++){
-            if (inside_perimeter(Corner(i, j), edges)){
+    for (int j = 0; j < height; j++){
+        for (int i = 0; i < width; i++){
+            if (inside_perimeter(Corner(i, j), edges)){ //(inside(Corner(i, j), edges)){
                 cout << "X";
             }
             else{
@@ -135,10 +120,10 @@ void analyse(string file){
     vector<Corner> corners = get_corners(file);
     vector<Edge> edges = get_edges(corners);
 
-    for (Edge& e : edges){
-        cout << e.type << ", " << e.pos << "\n";
+    for (const Edge& edge : edges){
+        cout << edge.upper << ":" << edge.lower << ", " << edge.pos << "\n";
     }
-    print_tiles(edges, 12, 12);
+    print_tiles(edges, 14, 9);
 
     /*
     long long max_area = 0;
